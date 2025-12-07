@@ -1,1 +1,666 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>原神 特産品タイピング (Genshin Typing)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background-color: #1a1a2e; /* Dark Blue Background */
+            color: #e0e0e0;
+            background-image: radial-gradient(#252a40 1px, transparent 1px);
+            background-size: 30px 30px;
+        }
+        .glass-panel {
+            background: rgba(30, 35, 60, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        .genshin-btn {
+            background: linear-gradient(135deg, #d4af37 0%, #b8860b 100%);
+            color: #fff;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+            transition: all 0.2s;
+        }
+        .genshin-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4);
+        }
+        .genshin-btn:active {
+            transform: translateY(0);
+        }
+        .input-glow:focus {
+            box-shadow: 0 0 15px rgba(100, 200, 255, 0.5);
+            border-color: #64c8ff;
+            outline: none;
+        }
+        
+        .romaji-text {
+            font-family: 'Roboto Mono', monospace;
+        }
+        
+        /* Custom Scrollbar for leaderboard */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1a1a2e; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3a4a6e; 
+            border-radius: 4px;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
 
+    <!-- App Container -->
+    <div id="app" class="w-full max-w-2xl">
+        
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-white mb-2 tracking-wider drop-shadow-lg">
+                <span class="text-yellow-500">原神</span> 特産品タイピング
+            </h1>
+            <p class="text-gray-400 text-sm md:text-base">全種類の特産品からランダムに20問出題！<br>ローマ字入力で最速タイムを目指せ！</p>
+        </div>
+
+        <!-- MENU SCREEN -->
+        <div id="menuScreen" class="glass-panel rounded-2xl p-8 text-center fade-in">
+            <div class="mb-6">
+                <label class="block text-gray-300 mb-2 text-sm">ニックネーム (ランキング用)</label>
+                <input type="text" id="nicknameInput" placeholder="旅人さん" class="w-full max-w-xs bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-center text-white text-lg focus:border-yellow-500 transition-colors outline-none" maxlength="10">
+                <!-- ニックネームのエラーメッセージ表示エリア -->
+                <div id="nicknameError" class="text-red-400 text-sm mt-2 min-h-[1.5rem]"></div>
+            </div>
+            
+            <div class="space-y-4">
+                <button onclick="startGame()" class="genshin-btn w-full max-w-xs py-4 rounded-full text-xl shadow-lg">
+                    ゲームスタート
+                </button>
+                <br>
+                <button onclick="showRanking()" class="text-gray-400 hover:text-white underline text-sm transition-colors">
+                    ランキングを見る
+                </button>
+            </div>
+            <p class="text-xs text-gray-500 mt-6">※プレイ時はIME(日本語入力)をOFFにして、ローマ字で直接タイピングしてください</p>
+            <p class="text-xs text-gray-500 mt-1">※柔軟な入力（例: <span class="text-yellow-400">chi/ti, sha/sya, tsu/tu</span>）や<span class="text-yellow-400">ハイフン(-)による長音</span>に対応しています。</p>
+        </div>
+
+        <!-- GAME SCREEN -->
+        <div id="gameScreen" class="hidden glass-panel rounded-2xl p-6 md:p-10 fade-in relative overflow-hidden">
+            <!-- Progress & Timer -->
+            <div class="flex justify-between items-center mb-8 text-gray-300 font-mono">
+                <div class="text-xl">
+                    問: <span id="questionCount" class="text-yellow-400 text-2xl font-bold">1</span>/20
+                </div>
+                <div class="text-2xl" id="timer">00.000</div>
+            </div>
+
+            <!-- Question Display -->
+            <div class="text-center mb-8">
+                <!-- Reading (Hiragana) -->
+                <div id="questionReading" class="text-lg md:text-xl text-gray-400 mb-1 font-bold tracking-widest min-h-[1.5rem]">
+                    <!-- Hiragana goes here -->
+                </div>
+                <!-- Kanji Name -->
+                <div id="questionKanji" class="text-3xl md:text-5xl font-bold text-white mb-3 drop-shadow-md min-h-[3.5rem]">
+                    <!-- Kanji goes here -->
+                </div>
+                <!-- Romaji Target -->
+                <div id="questionRomaji" class="text-2xl md:text-3xl text-blue-300 font-bold tracking-wider romaji-text min-h-[2rem]">
+                    <!-- Romaji Target goes here -->
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="relative max-w-md mx-auto">
+                <input type="text" id="typeInput" class="w-full bg-gray-800/50 border-2 border-gray-600 rounded-xl px-6 py-4 text-center text-2xl text-white input-glow transition-all" placeholder="ローマ字入力 (IME OFF推奨)" autocomplete="off" spellcheck="false" readonly>
+                <div id="feedback" class="absolute right-4 top-4 text-2xl opacity-0 transition-opacity">✨</div>
+            </div>
+            <div class="text-center text-gray-500 text-xs mt-2">
+                表示されたローマ字をタイプしてください。
+            </div>
+        </div>
+
+        <!-- RESULT SCREEN -->
+        <div id="resultScreen" class="hidden glass-panel rounded-2xl p-8 text-center fade-in">
+            <h2 class="text-2xl text-yellow-500 font-bold mb-6">任務完了！</h2>
+            
+            <div class="mb-8">
+                <p class="text-gray-400 text-sm">クリアタイム</p>
+                <p id="resultTime" class="text-5xl font-mono font-bold text-white my-2">00.000</p>
+                <p class="text-gray-400 text-sm">秒</p>
+            </div>
+
+            <div class="space-y-3">
+                <button onclick="resetGame()" class="genshin-btn px-8 py-3 rounded-full text-lg shadow-md w-full max-w-xs">
+                    もう一度挑戦
+                </button>
+                <button onclick="showRankingFromResults()" class="block w-full text-gray-400 hover:text-white text-sm mt-4">
+                    ランキングを確認
+                </button>
+            </div>
+        </div>
+
+        <!-- RANKING SCREEN -->
+        <div id="rankingScreen" class="hidden glass-panel rounded-2xl p-6 fade-in">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold text-yellow-500">特産品早打ちランキング</h2>
+                <button onclick="backToMenu()" class="text-sm text-gray-400 hover:text-white bg-gray-800 px-3 py-1 rounded">戻る</button>
+            </div>
+            
+            <div class="bg-gray-900/50 rounded-lg overflow-hidden">
+                <table class="w-full text-left">
+                    <thead class="bg-gray-800 text-gray-400 text-xs uppercase">
+                        <tr>
+                            <th class="px-4 py-3 text-center">順位</th>
+                            <th class="px-4 py-3">名前</th>
+                            <th class="px-4 py-3 text-right">タイム</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rankingList" class="text-sm text-gray-200 divide-y divide-gray-700">
+                        <!-- Ranking Items Generated by JS -->
+                        <tr><td colspan="3" class="text-center py-4">読み込み中...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Firebase Scripts -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+        import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+
+        // --- Firebase Config ---
+        const firebaseConfig = JSON.parse(new URLSearchParams(window.location.search).get('firebase_config') || '{}');
+        const appId = new URLSearchParams(window.location.search).get('app_id') || 'default-app';
+        
+        let db;
+        let auth;
+        let isFirebaseReady = false;
+
+        try {
+            if (Object.keys(firebaseConfig).length > 0) {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                signInAnonymously(auth).then(() => {
+                    isFirebaseReady = true;
+                    console.log("Firebase initialized");
+                }).catch(e => console.error("Auth failed:", e));
+            }
+        } catch (e) {
+            console.error("Firebase init error:", e);
+        }
+
+        // --- Profanity Filter (不適切なニックネームのフィルタリング) ---
+        // 簡易的な禁止ワードリスト
+        const bannedWords = [
+            "ばか", "しね", "ころす", "あほ", "くそ", "ちん", "まん", "せっくす", 
+            "fucker", "shit", "fuck", "damn", "ass", "piss", "cunt", "cock", "vagina", "penis", 
+            "kill", "die", "baka", "shine", "kuso", "aho", "korosu"
+        ];
+
+        /**
+         * ニックネームが不適切かどうかをチェックする
+         * @param {string} nickname - ユーザーが入力したニックネーム
+         * @returns {boolean} 不適切であれば true
+         */
+        function isProfane(nickname) {
+            // 全角・半角の英数字、ひらがな、カタカナ、漢字のみを残して小文字化
+            const normalizedName = nickname.toLowerCase()
+                                           .replace(/[^a-z0-9\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/g, ''); 
+            
+            for (const word of bannedWords) {
+                if (normalizedName.includes(word.toLowerCase())) {
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+
+
+        // --- Data: Genshin Local Specialties (特産品) - Corrected List (54 items) ---
+        // Romaji is based on standard Hepburn (repeated vowels for long sounds).
+        const specialties = [
+            // Mondstadt (10 items)
+            { k: "ヴァルベリー", r: "ヴぁるべりー", romaji: "varuberii" }, // 長音
+            { k: "セシリアの花", r: "せしりあのはな", romaji: "seshirianohana" },
+            { k: "蒲公英の種", r: "たんぽぽのたね", romaji: "tanpoponotane" },
+            { k: "慕風のマッシュルーム", r: "ぼふうのまっしゅるーむ", romaji: "bofuunomasshuruumu" }, // 長音, 促音
+            { k: "ググプラム", r: "ぐぐぷらむ", romaji: "gugupuramu" },
+            { k: "風車アスター", r: "ふうしゃあすたー", romaji: "fuushaaasutaa" }, // 長音
+            { k: "ドドリアン", r: "どどりあん", romaji: "dodorian" },
+            { k: "イグサ", r: "いぐさ", romaji: "igusa" },
+            { k: "フロストランプ", r: "ふろすとらんぷ", romaji: "furosutoranpu" },
+            { k: "月落銀", r: "げつらくぎん", romaji: "getsurakugin" },
+            
+            // Liyue (11 items)
+            { k: "絶雲の唐辛子", r: "ぜつうんのとうがらし", romaji: "zetsuunnotougarashi" },
+            { k: "清心", r: "せいしん", romaji: "seishin" },
+            { k: "琉璃袋", r: "るりぶくろ", romaji: "ruribukuro" },
+            { k: "霓裳花", r: "げいしょうばな", romaji: "geishoubana" },
+            { k: "琉璃百合", r: "るりゆり", romaji: "ruriyuri" },
+            { k: "石珀", r: "せきはく", romaji: "sekihaku" },
+            { k: "夜泊石", r: "よどまりいし", romaji: "yodomariishi" },
+            { k: "星螺", r: "せいら", romaji: "seira" },
+            { k: "血石華", r: "けっこくばな", romaji: "kekkokubana" }, // 促音
+            { k: "岩裂の花", r: "がんれつのはな", romaji: "ganretsunohana" }, 
+            { k: "琉鱗石", r: "りゅうりんせき", romaji: "ryuurinseki" }, 
+            
+            // Inazuma (10 items)
+            { k: "ウミレイシ", r: "うみれいし", romaji: "umireishi" },
+            { k: "オニカブトムシ", r: "おにかぶとむし", romaji: "onikabutomushi" },
+            { k: "鳴草", r: "なぐさ", romaji: "nagusa" },
+            { k: "緋櫻毬", r: "ひおうきゅう", romaji: "hioukyuu" }, // 拗音
+            { k: "晶化骨髄", r: "しょうかこつずい", romaji: "shoukakotsuzui" },
+            { k: "珊瑚真珠", r: "さんごしんじゅ", romaji: "sangoshinju" }, // 拗音
+            { k: "天雲草の実", r: "あまくもくさのみ", romaji: "amakumokusanomi" },
+            { k: "ユウトウタケ", r: "ゆうとうたけ", romaji: "yuutoutake" },
+            { k: "枯れ紫菖", r: "かれししょう", romaji: "kareshishou" },
+            { k: "蛍光ツノキノコ", r: "けいこうつのきのこ", romaji: "keikoutsunokinoko" }, 
+
+            // Sumeru (11 items)
+            { k: "サウマラタ蓮", r: "さうまらたはす", romaji: "saumaratahasu" },
+            { k: "カルパラタ蓮", r: "かるぱらたはす", romaji: "karuparatahasu" },
+            { k: "ルッカデヴァータダケ", r: "るっかでヴぁーただけ", romaji: "rukkadevaatadake" }, // 促音, 長音
+            { k: "パティサラ", r: "ぱてぃさら", romaji: "patisara" },
+            { k: "聖金虫", r: "せいきんちゅう", romaji: "seikinchuu" }, // 拗音
+            { k: "赤念の実", r: "せきねんのみ", romaji: "sekinennomi" },
+            { k: "砂脂蛹", r: "さしよう", romaji: "sashiyou" },
+            { k: "サングイト", r: "さんぐいと", romaji: "sanguito" },
+            { k: "悼霊花", r: "とうれいか", romaji: "toureika" },
+            { k: "サウリアンサキュレント", r: "さうりあんさきゅれんと", romaji: "sauriansakyurento" },
+            { k: "シャクギク", r: "しゃくぎく", romaji: "shakugiku" },
+            
+            // Fontaine (12 items)
+            { k: "蒼晶螺", r: "そうしょうら", romaji: "soushoura" },
+            { k: "ロマリタイムフラワー", r: "ろまりたいむふらわー", romaji: "romaritaimufurawaa" }, // 長音
+            { k: "ルミドゥースベル", r: "るみどぅーすべる", romaji: "rumiduusuberu" }, // 長音
+            { k: "レインボーローズ", r: "れいんぼーろーず", romaji: "reinbooroozu" }, // 長音
+            { k: "ルエトワール", r: "るえとわーる", romaji: "ruetowaaru" }, // 長音
+            { k: "探測ユニット・子機", r: "たんそくゆにっとこき", romaji: "tansokuyunittokoki" }, // 促音
+            { k: "湖光の鈴蘭", r: "ここうのすずらん", romaji: "kokounosuzuran" },
+            { k: "初露の源", r: "はつつゆのみなもと", romaji: "hatsutsuyunominamoto" }, // 促音
+            { k: "清水玉", r: "せいすいぎょく", romaji: "seisuigyoku" }, // 拗音
+            { k: "波しぶきのエラ", r: "なみしぶきのえら", romaji: "namishibukinoera" },
+            { k: "ケネパベリー", r: "けねぱべりー", romaji: "kenepaberii" }, // 長音
+            { k: "携行型ベアリング", r: "けいこうがたべありんぐ", romaji: "keikougatabearingu" },
+        ];
+        
+        // --- Game State ---
+        let currentQuestions = [];
+        let currentIndex = 0;
+        let startTime = 0;
+        let timerInterval = null;
+        let userNickname = "";
+        let romajiIndex = 0; // Romaji入力の進捗を追跡するインデックス (Canonical Romajiに対して)
+
+        // --- DOM Elements ---
+        const screens = {
+            menu: document.getElementById('menuScreen'),
+            game: document.getElementById('gameScreen'),
+            result: document.getElementById('resultScreen'),
+            ranking: document.getElementById('rankingScreen')
+        };
+        const input = document.getElementById('typeInput');
+        const display = {
+            kanji: document.getElementById('questionKanji'),
+            reading: document.getElementById('questionReading'),
+            romaji: document.getElementById('questionRomaji'),
+            count: document.getElementById('questionCount'),
+            timer: document.getElementById('timer'),
+            resultTime: document.getElementById('resultTime')
+        };
+
+        // --- Functions Exposed to Window (to fix ReferenceError) ---
+        // Functions must be attached to the global 'window' object to be called from HTML onclick.
+
+        window.startGame = function() {
+            const nickInput = document.getElementById('nicknameInput');
+            const errorDisplay = document.getElementById('nicknameError');
+            const nick = nickInput.value.trim();
+
+            errorDisplay.textContent = ''; // Clear previous error
+
+            if (!nick) {
+                errorDisplay.textContent = 'ニックネームを入力してください。';
+                nickInput.focus();
+                return;
+            }
+
+            if (isProfane(nick)) {
+                errorDisplay.textContent = '不適切な表現が含まれています。別のニックネームを使用してください。';
+                nickInput.focus();
+                return;
+            }
+
+            userNickname = nick;
+
+            // 質問数を特産品リストの合計数に合わせて変更
+            const shuffled = [...specialties].sort(() => 0.5 - Math.random());
+            currentQuestions = shuffled.slice(0, 20); // 質問数は20問のまま維持
+            
+            currentIndex = 0;
+            romajiIndex = 0; // Romajiインデックスをリセット
+            switchScreen('game');
+            
+            input.value = '';
+            input.focus();
+            updateDisplay();
+            
+            startTime = Date.now();
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(updateTimer, 10);
+        };
+
+        window.resetGame = function() {
+            switchScreen('menu');
+        };
+
+        function switchScreen(screenName) {
+            Object.values(screens).forEach(s => s.classList.add('hidden'));
+            screens[screenName].classList.remove('hidden');
+        }
+
+        function updateTimer() {
+            const now = Date.now();
+            const diff = (now - startTime) / 1000;
+            display.timer.textContent = diff.toFixed(3);
+        }
+
+        function updateDisplay() {
+            if (currentIndex >= currentQuestions.length) {
+                finishGame();
+                return;
+            }
+            const q = currentQuestions[currentIndex];
+            const targetRomaji = q.romaji;
+
+            display.kanji.textContent = q.k;
+            display.reading.textContent = q.r;
+            
+            // Romaji Input Logic: Show current progress and remaining
+            const typed = targetRomaji.substring(0, romajiIndex);
+            const remaining = targetRomaji.substring(romajiIndex);
+
+            // 正しく入力された部分を緑色で表示
+            display.romaji.innerHTML = `<span class="text-green-400">${typed}</span><span>${remaining}</span>`;
+            display.count.textContent = currentIndex + 1;
+        }
+
+        function flashFeedback() {
+            const fb = document.getElementById('feedback');
+            fb.style.opacity = '1';
+            setTimeout(() => fb.style.opacity = '0', 300);
+        }
+
+        function finishGame() {
+            clearInterval(timerInterval);
+            const finalTime = parseFloat(display.timer.textContent);
+            display.resultTime.textContent = finalTime.toFixed(3);
+            switchScreen('result');
+            saveScore(finalTime);
+        }
+
+        /**
+         * 柔軟なローマ字入力ルールに基づき、タイプされたキーが有効かどうか、
+         * 有効な場合に正規のRomajiを何文字スキップ (消費) するかを返す。
+         * @param {string} typedKey - ユーザーが押したキー (小文字)。
+         * @param {string} targetRomaji - 正規のローマ字 (例: 'seshirianohana')。
+         * @param {number} romajiIndex - 現在の正規のRomaji内でのインデックス。
+         * @returns {number} 進めるべき文字数 (0: 不正解/不一致, 1以上: 正解とみなす文字数)。
+         */
+        function getAdvanceCount(typedKey, targetRomaji, romajiIndex) {
+            const typedLower = typedKey.toLowerCase();
+            const currentCanonicalChar = targetRomaji[romajiIndex];
+            
+            // 1. 厳密な一致 (Strict Match: e.g., typing 'i' when expecting 'i')
+            if (typedLower === currentCanonicalChar) {
+                return 1;
+            }
+
+            // 2. 柔軟な一致ロジック (Flexible Match Logic)
+            
+            const remaining = targetRomaji.substring(romajiIndex);
+            const prevChar = romajiIndex > 0 ? targetRomaji[romajiIndex - 1] : '';
+
+            // --- D: 伸ばし棒 (長音) の柔軟入力 (Hyphen '-') 対応 ---
+            // 伸ばし棒の「ー」は通常、同じ母音の連続で表現される (例: aa, ii)。
+            // 現在の文字が母音 (a, i, u, e, o) で、かつ直前の文字が同じ母音であり、
+            // ユーザーが '-' をタイプした場合、長音として1文字消費を許可する。
+            const isVowel = 'aiueo'.includes(currentCanonicalChar);
+            if (typedLower === '-' && isVowel && prevChar === currentCanonicalChar) {
+                return 1;
+            }
+            // --- D: END ---
+
+
+            // --- A: 'h' や 's' をスキップする柔軟入力 (si, ti, tu) ---
+            
+            // A1. chi/ti (chi -> ti) : prev='c', current='h' で typed='i' の場合、'h'と'i'の2文字をスキップ
+            if (prevChar === 'c' && remaining.startsWith('hi') && typedLower === 'i') {
+                return 2; 
+            }
+            // A2. shi/si (shi -> si) : prev='s', current='h' で typed='i' の場合、'h'と'i'の2文字をスキップ
+            if (prevChar === 's' && remaining.startsWith('hi') && typedLower === 'i') {
+                return 2; 
+            }
+            // A3. tsu/tu (tsu -> tu) : prev='t', current='s' で typed='u' の場合、's'と'u'の2文字をスキップ
+            if (prevChar === 't' && remaining.startsWith('su') && typedLower === 'u') {
+                return 2; 
+            }
+
+
+            // --- B: 子音を読み替える柔軟入力 (fu/hu, ji/zi, zu/du など) ---
+            
+            // B1. fu/hu ('f' の代わりに 'h' を許容)
+            if (currentCanonicalChar === 'f' && typedLower === 'h' && remaining.startsWith('fu')) {
+                 return 1; 
+            }
+            
+            // B2. ja/za, ju/zu, jo/zo, ji/zi ('j' の代わりに 'z' を許容)
+            // 現在 'j' にいて、ユーザーが 'z' をタイプした場合、次の文字が母音/yであれば1文字消費
+            if (currentCanonicalChar === 'j' && typedLower === 'z' && remaining.length >= 2) {
+                 const nextChar = remaining[1];
+                 if ('aiueoy'.includes(nextChar)) {
+                     return 1; 
+                 }
+            }
+            
+            // B3. zu/du ('z' の代わりに 'd' を許容)
+            if (currentCanonicalChar === 'z' && typedLower === 'd' && remaining.startsWith('zu')) {
+                 return 1; 
+            }
+
+            // --- C: 拗音の柔軟入力 ('h' をスキップし 'y' を受け入れる) ---
+            
+            // cha/tya, chu/tyu, cho/tyo, sha/sya, shu/syu, sho/syo に対応
+            // 正規が 'h' にいる (prevChar='c' or 's') 状態 (例: `ch`の`h`) で、ユーザーが 'y' をタイプした場合 (例: `ty`の`y`)
+            if (currentCanonicalChar === 'h' && typedLower === 'y' && remaining.length >= 2) {
+                const nextChar = remaining[1]; // 'a', 'u', 'o' のいずれかか？
+                
+                // C1. cha/tya, chu/tyu, cho/tyo (prevChar='c')
+                if (prevChar === 'c' && 'auo'.includes(nextChar)) {
+                    return 1; // 'h' をスキップし、'y' をタイプ済みとみなし、次の母音へ進める
+                }
+                
+                // C2. sha/sya, shu/syu, sho/syo (prevChar='s')
+                if (prevChar === 's' && 'auo'.includes(nextChar)) {
+                    return 1; // 'h' をスキップし、'y' をタイプ済みとみなし、次の母音へ進める
+                }
+            }
+            
+            // すべてのチェックに失敗した場合
+            return 0;
+        }
+
+        // --- Input Logic (Romaji Typing) ---
+        input.addEventListener('keydown', (e) => {
+            if (currentIndex >= currentQuestions.length) return;
+            const currentQ = currentQuestions[currentIndex];
+            const targetRomaji = currentQ.romaji;
+
+            // 変換中の場合は無視（IME ONの状態で何か入力された場合）
+            if (e.isComposing || e.keyCode === 229) return;
+            
+            // Alt, Ctrl, Metaキーを無視
+            if (e.metaKey || e.ctrlKey || e.altKey) return;
+            
+            // Backspaceの処理
+            if (e.key === 'Backspace') {
+                e.preventDefault(); 
+                if (romajiIndex > 0) {
+                    romajiIndex--;
+                    // input.valueも手動で同期
+                    input.value = targetRomaji.substring(0, romajiIndex); 
+                    updateDisplay();
+                }
+                return;
+            }
+
+            // タイピング文字の判定
+            if (e.key.length === 1 && romajiIndex < targetRomaji.length) {
+                e.preventDefault(); // ブラウザの標準動作を抑制
+                
+                const typedKey = e.key.toLowerCase();
+                
+                const advanceCount = getAdvanceCount(typedKey, targetRomaji, romajiIndex);
+
+                if (advanceCount > 0) {
+                    // 正解（柔軟なルール含む）の文字が入力された
+                    
+                    // Input Valueの更新: 柔軟な入力の場合でも、`input.value`にはタイプされた文字を追加
+                    // ただし、ハイフンの場合は表示しない (ローマ字入力ルールに合わせる)
+                    if (typedKey !== '-') {
+                        input.value += typedKey; 
+                    } else {
+                        // ハイフンは入力として受け付けるが、表示は次の文字（次の母音）まで待つ
+                        // ロジックを単純化するため、ここでは入力値を更新しないでおく
+                        // または、既に次の文字が進んでいるため、入力値の同期は不要
+                        // ここでは、入力値の表示はそのまま維持します。
+                    }
+
+                    // Romaji Indexの更新: 正規のRomajiを消費した分だけ進める
+                    romajiIndex += advanceCount; 
+                    updateDisplay();
+                    
+                    if (romajiIndex >= targetRomaji.length) {
+                        // 全ての文字が入力完了
+                        flashFeedback();
+                        romajiIndex = 0; // 次の単語のためにリセット
+                        currentIndex++;
+                        input.value = ''; // 入力フィールドをクリア
+                        updateDisplay();
+                    }
+                } else {
+                    // 不正解の文字が入力された
+                    input.classList.add('border-red-500');
+                    setTimeout(() => input.classList.remove('border-red-500'), 150);
+                }
+            }
+        });
+
+
+        // --- Leaderboard Logic ---
+        async function saveScore(time) {
+            if (!isFirebaseReady) return;
+            try {
+                // Firebase security rules use the public data path
+                await addDoc(collection(db, `artifacts/${appId}/public/data/scores`), {
+                    nickname: userNickname,
+                    time: time,
+                    createdAt: serverTimestamp()
+                });
+            } catch (e) {
+                console.error("Error saving score:", e);
+            }
+        }
+
+        window.showRanking = function() {
+            switchScreen('ranking');
+            loadRanking();
+        };
+
+        window.showRankingFromResults = function() {
+            window.showRanking();
+        };
+
+        window.backToMenu = function() {
+            switchScreen('menu');
+        };
+
+        async function loadRanking() {
+            const tbody = document.getElementById('rankingList');
+            tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4">読み込み中...</td></tr>';
+
+            if (!isFirebaseReady) {
+                tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-red-400">ランキングシステムに接続できませんでした</td></tr>';
+                return;
+            }
+
+            try {
+                const q = query(
+                    collection(db, `artifacts/${appId}/public/data/scores`),
+                    orderBy("time", "asc"),
+                    limit(10)
+                );
+                const querySnapshot = await getDocs(q);
+                
+                tbody.innerHTML = '';
+                let rank = 1;
+                
+                if (querySnapshot.empty) {
+                    tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-gray-500">まだ記録がありません。最初の挑戦者になろう！</td></tr>';
+                    return;
+                }
+
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    // Simple check if the score is the one just recorded by the current nickname/time
+                    // Note: We use a small delta check for floating point comparison robustness, though resultTime is a string from DOM.
+                    const isMe = data.nickname === userNickname && Math.abs(data.time - parseFloat(display.resultTime.textContent || 0)) < 0.01;
+                    const rowClass = isMe ? "bg-yellow-900/30 text-yellow-200" : "";
+                    
+                    const row = `
+                        <tr class="${rowClass} hover:bg-white/5 transition-colors">
+                            <td class="px-4 py-3 text-center font-mono ${rank <= 3 ? 'text-yellow-400 font-bold' : 'text-gray-500'}">#${rank}</td>
+                            <td class="px-4 py-3 font-medium truncate max-w-[120px]">${escapeHtml(data.nickname)}</td>
+                            <td class="px-4 py-3 text-right font-mono">${data.time.toFixed(3)}s</td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += row;
+                    rank++;
+                });
+
+            } catch (e) {
+                console.error("Error loading ranking:", e);
+                tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-red-400">ランキングの取得に失敗しました</td></tr>';
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return "";
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
